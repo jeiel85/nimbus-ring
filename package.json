@@ -1,0 +1,20 @@
+{
+  "name": "nimbus-ring",
+  "version": "1.0.0",
+  "description": "A concrete halo restaurant above a sea of clouds — real-time Three.js world and a 45 s drone film rendered from it.",
+  "scripts": {
+    "render": "node scripts/render.mjs",
+    "stills": "node scripts/render.mjs --stills 3,9,15,20,25.5,30.5,36,41",
+    "serve": "node scripts/serve.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  },
+  "private": true
+}

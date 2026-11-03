@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Nimbus Ring</title>
+  <meta name="description" content="A concrete halo restaurant above a sea of clouds — a real-time Three.js world and the 45-second drone film rendered from it." />
+  <meta property="og:title" content="Nimbus Ring" />
+  <meta property="og:description" content="A halo above the sea of clouds. Real-time Three.js + a 45 s drone film." />
+  <meta property="og:image" content="media/poster.jpg" />
+  <meta name="theme-color" content="#05060c" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2307091a'/%3E%3Cellipse cx='32' cy='34' rx='20' ry='8' fill='none' stroke='%23ffb36b' stroke-width='5'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bar: 0vh;
+      --ink: #f3ece2;
+      --dim: rgba(243, 236, 226, 0.62);
+      --ember: #ffb36b;
+      --glass: rgba(10, 12, 24, 0.55);
+      --line: rgba(255, 255, 255, 0.12);
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #05060c; color: var(--ink); overflow: hidden; }
+    body { font-family: 'IBM Plex Mono', ui-monospace, monospace; -webkit-font-smoothing: antialiased; }
+    #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+
+    .overlay { position: fixed; inset: 0; pointer-events: none; }
+    #title-card, #end-card {
+      position: absolute; inset: 0; display: grid; place-content: center; text-align: center; opacity: 0;
+    }
+    #title-card { place-content: start center; padding-top: max(calc(var(--bar) + 5.5vh), 96px);
+      text-shadow: 0 0 2.4vh rgba(0, 0, 0, 0.45);
+    }
+    .display {
+      font-family: 'Cormorant Garamond', serif; font-weight: 300;
+      font-size: min(9.2vh, 6.4vw); letter-spacing: 0.42em; margin-right: -0.42em; line-height: 1;
+    }
+    .sub {
+      margin-top: 2.2vh; font-size: min(1.55vh, 2.6vw); letter-spacing: 0.5em; margin-right: -0.5em;
+      color: var(--dim); text-transform: uppercase;
+    }
+    #end-card .display { font-size: min(6vh, 5.6vw); }
+    #end-card .credit { margin-top: 4vh; font-size: min(1.3vh, 2.4vw); letter-spacing: 0.32em; color: var(--dim); }
+    #captions {
+      position: absolute; left: 4.2vw; right: 4.2vw; bottom: calc(var(--bar) / 2); transform: translateY(50%);
+      display: flex; justify-content: space-between; align-items: center; opacity: 0;
+      font-size: min(1.45vh, 2.4vw); letter-spacing: 0.28em; color: var(--dim);
+    }
+    #captions b { color: var(--ink); font-weight: 500; }
+    #captions .rec::before {
+      content: ''; display: inline-block; width: 0.8vh; height: 0.8vh; border-radius: 50%;
+      background: #ff4b3a; margin-right: 1.2vh; vertical-align: 0.1vh; box-shadow: 0 0 1vh #ff4b3a;
+    }
+
+    /* live page chrome */
+    .hud, .dock { position: fixed; z-index: 2; opacity: 0; transition: opacity 0.8s; }
+    body.ready .hud, body.ready .dock { opacity: 1; }
+    body.capture .hud, body.capture .dock { display: none; }
+    .hud { top: max(16px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+    .brand { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.32em; }
+    .brand small { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.24em; color: var(--dim); margin-top: 4px; }
+    .hud a { pointer-events: auto; color: var(--dim); font-size: 11px; letter-spacing: 0.18em; text-decoration: none; border: 1px solid var(--line); padding: 8px 12px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(10px); }
+    .hud a:hover { color: var(--ink); }
+    .dock {
+      left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+      width: min(760px, calc(100vw - 32px)); display: flex; gap: 8px; align-items: center;
+      padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); backdrop-filter: blur(14px);
+    }
+    .dock button {
+      font: inherit; font-size: 11px; letter-spacing: 0.16em; color: var(--dim); background: transparent;
+      border: 1px solid transparent; border-radius: 10px; padding: 9px 12px; cursor: pointer; white-space: nowrap;
+    }
+    .dock button:hover { color: var(--ink); }
+    .dock button[aria-pressed='true'] { color: var(--ink); border-color: var(--line); background: rgba(255, 255, 255, 0.06); }
+    .dock button:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+    #play { width: 38px; padding: 9px 0; }
+    #play::before { content: '❚❚'; letter-spacing: 0; }
+    #play[aria-pressed='true']::before { content: '▶'; }
+    #timeline { position: relative; flex: 1; display: flex; gap: 2px; height: 30px; cursor: pointer; }
+    body[data-mode='explore'] #timeline, body[data-mode='explore'] #play { opacity: 0.35; }
+    .seg { flex-basis: 0; min-width: 0; padding: 0 !important; border-radius: 4px !important; background: rgba(255, 255, 255, 0.07) !important; display: grid; place-items: center; }
+    .seg span { font-size: 9px; letter-spacing: 0.1em; }
+    #playhead { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ember); box-shadow: 0 0 10px var(--ember); pointer-events: none; transform: translateX(-1px); }
+    #watch { color: var(--ember) !important; }
+    .hint { position: fixed; z-index: 2; left: 50%; transform: translateX(-50%); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 62px); font-size: 10px; letter-spacing: 0.2em; color: var(--dim); opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+    body[data-mode='explore'] .hint { opacity: 1; }
+    @media (max-width: 620px) {
+      .dock { flex-wrap: wrap; }
+      #timeline { order: 5; flex-basis: 100%; }
+      .seg span { display: none; }
+      .brand { font-size: 18px; }
+      .hint { width: 92vw; text-align: center; letter-spacing: 0.12em; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 104px); }
+    }
+
+    dialog { border: 0; padding: 0; background: transparent; max-width: min(1280px, 94vw); }
+    dialog::backdrop { background: rgba(2, 3, 8, 0.86); backdrop-filter: blur(6px); }
+    dialog video { width: 100%; display: block; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
+    dialog form { text-align: right; margin-bottom: 8px; }
+    dialog form button { font: inherit; font-size: 11px; letter-spacing: 0.2em; color: var(--dim); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body data-mode="film">
+  <canvas id="scene" aria-label="Nimbus Ring, a real-time 3D scene"></canvas>
+
+  <div class="overlay" aria-hidden="true">
+    <div id="title-card">
+      <div class="display">NIMBUS RING</div>
+      <div class="sub">a halo above the sea of clouds</div>
+    </div>
+    <div id="end-card">
+      <div class="display">NIMBUS RING</div>
+      <div class="sub">real-time three.js · rendered frame by frame</div>
+      <div class="credit">github.com/jeiel85/nimbus-ring</div>
+    </div>
+    <div id="captions"><span class="rec"><b id="cap-left"></b></span><span id="cap-right"></span></div>
+  </div>
+
+  <header class="hud">
+    <div class="brand">NIMBUS RING<small>REAL-TIME · THREE.JS</small></div>
+    <a href="https://github.com/jeiel85/nimbus-ring" target="_blank" rel="noopener">SOURCE ↗</a>
+  </header>
+
+  <div class="hint">DRAG TO ORBIT · SCROLL / PINCH TO ZOOM · RIGHT-DRAG TO PAN</div>
+
+  <nav class="dock" aria-label="Controls">
+    <button id="play" aria-label="Play / pause" aria-pressed="false"></button>
+    <button data-mode="film" aria-pressed="true">FILM</button>
+    <button data-mode="explore" aria-pressed="false">EXPLORE</button>
+    <div id="timeline" role="group" aria-label="Shots"><div id="playhead"></div></div>
+    <button id="watch">▶ RENDER</button>
+  </nav>
+
+  <dialog id="film-dialog" aria-label="Rendered film">
+    <form method="dialog"><button>CLOSE ✕</button></form>
+    <video src="media/nimbus-ring.mp4" poster="media/poster.jpg" controls playsinline preload="none"></video>
+  </dialog>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
