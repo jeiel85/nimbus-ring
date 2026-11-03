@@ -96,6 +96,14 @@
       .hint { width: 92vw; text-align: center; letter-spacing: 0.12em; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 104px); }
     }
 
+    #fallback { position: fixed; inset: 0; z-index: 5; display: grid; place-content: center; gap: 18px; padding: 24px; text-align: center; background: radial-gradient(ellipse at 50% 70%, #3a2440 0%, #0b0d1c 55%, #05060c 100%); }
+    #fallback[hidden] { display: none; }
+    #fallback .display { font-size: min(7vh, 9vw); }
+    #fallback p { max-width: 34em; margin: 0 auto; font-size: 12px; line-height: 1.8; letter-spacing: 0.08em; color: var(--dim); }
+    #fallback .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    #fallback a, #fallback button { font: inherit; font-size: 11px; letter-spacing: 0.18em; color: var(--ember); text-decoration: none; background: none; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; cursor: pointer; }
+    body.failed .hud, body.failed .dock, body.failed .hint { display: none; }
+
     dialog { border: 0; padding: 0; background: transparent; max-width: min(1280px, 94vw); }
     dialog::backdrop { background: rgba(2, 3, 8, 0.86); backdrop-filter: blur(6px); }
     dialog video { width: 100%; display: block; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
@@ -105,8 +113,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        "three": "./vendor/three/build/three.module.min.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
       }
     }
   </script>
@@ -147,6 +155,33 @@
     <video src="media/nimbus-ring.mp4" poster="media/poster.jpg" controls playsinline preload="none"></video>
   </dialog>
 
-  <script type="module" src="src/main.js"></script>
+  <div id="fallback" hidden role="alert">
+    <div class="display">NIMBUS RING</div>
+    <p id="fallback-msg"></p>
+    <div class="actions">
+      <a href="media/nimbus-ring.mp4">▶ WATCH THE RENDERED FILM</a>
+      <button id="fallback-reload" type="button" hidden>RELOAD</button>
+    </div>
+  </div>
+
+  <script>
+    // Shown when the real-time scene can't start or dies; the rendered film is always one tap away.
+    window.__fail = function (message, opts) {
+      if (window.__failed) return;
+      window.__failed = message;
+      document.getElementById('fallback-msg').textContent = message;
+      document.getElementById('fallback-reload').hidden = !(opts && opts.reload);
+      document.getElementById('fallback').hidden = false;
+      document.body.classList.add('failed');
+    };
+    document.getElementById('fallback-reload').addEventListener('click', function () { location.reload(); });
+    addEventListener('error', function () {
+      if (!document.body.classList.contains('ready') && !window.__ready) window.__fail('The 3D scene failed to start in this browser.');
+    });
+    addEventListener('unhandledrejection', function () {
+      if (!document.body.classList.contains('ready') && !window.__ready) window.__fail('The 3D scene failed to start in this browser.');
+    });
+  </script>
+  <script type="module" src="src/main.js" onerror="window.__fail('The 3D scene could not be loaded. Check your connection and reload.', { reload: true })"></script>
 </body>
 </html>

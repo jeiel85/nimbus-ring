@@ -5,6 +5,7 @@
 //   node scripts/render.mjs --stills 3,9.5,20    → out/stills/*.png only
 //   node scripts/render.mjs --fps 24 --width 1280 --height 720 --out out/draft.mp4
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -66,10 +67,22 @@ try {
   console.log(`GPU: ${gpu}`);
   if (/swiftshader|llvmpipe/i.test(gpu)) console.warn('warning: software rendering — this will be slow');
 
-  const shoot = (t) =>
-    page.evaluate((x) => window.__renderAt(x), t).then(() =>
-      page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false }),
-    );
+  // Film grain changes every frame, so two identical screenshots in a row mean the capture
+  // did not pick up the new frame — unless the picture is faded to black (fade-in / end card).
+  let prevHash = null;
+  const shoot = async (t) => {
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const { fade } = await page.evaluate((x) => window.__renderAt(x), t);
+      const png = await page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false });
+      const hash = crypto.createHash('sha1').update(png).digest('hex');
+      if (hash !== prevHash || fade >= 0.98) {
+        prevHash = hash;
+        return png;
+      }
+      console.warn(`stale capture at t=${t.toFixed(3)}s (attempt ${attempt}), retrying`);
+    }
+    throw new Error(`frame at t=${t.toFixed(3)}s never differed from the previous one — aborting instead of encoding stale frames`);
+  };
 
   if (args.stills) {
     const dir = path.join(ROOT, 'out', 'stills');

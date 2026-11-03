@@ -86,7 +86,17 @@ npm run render
 npm run stills
 ```
 
-샷마다 스틸 한 장씩 `out/stills/`에 저장합니다. 옵션: `--fps 24`, `--width 1280 --height 720`, `--out out/draft.mp4`, `--stills 3,9.5,20`.
+샷마다 스틸 한 장씩 `out/stills/`에 저장합니다. 옵션: `--fps 24`, `--width 1280 --height 720`, `--out out/draft.mp4`, `--stills 3,9.5,20`, `--duration 2`.
+
+렌더러는 필름 그레인 덕분에 매 프레임이 달라야 한다는 점을 이용해, 직전과 똑같은 스크린샷이 나오면(검게 페이드된 구간 제외) 다시 찍고 4번 연속이면 인코딩을 멈춥니다.
+
+```bash
+npm run bench
+```
+
+품질 단계(high / low)별로 샷마다 프레임당 GPU 시간을 잽니다. 셰이더나 지오메트리 예산을 바꾼 뒤 성능이 떨어졌는지 확인할 때 씁니다. Radeon 780M 기준: high 1600×900 최악 26 ms, low 1600×900 14 ms, low 412×915 6 ms.
+
+three.js는 CDN 없이 `vendor/three/`에 필요한 파일만 들어 있습니다. `three` 버전을 올렸다면 `npm run vendor`로 다시 복사하세요.
 
 ## 구조
 
@@ -100,7 +110,12 @@ src/shots.js          8개 샷의 카메라 경로·렌즈·흔들림·전환
 src/post.js           블룸 → 톤매핑 → 그레이드 컴포저
 scripts/render.mjs    프레임 캡처 → ffmpeg → 오디오 먹싱
 scripts/soundtrack.mjs  절차적 사운드트랙(WAV)
+scripts/bench.mjs     품질 단계별 프레임 시간 측정
+scripts/vendor.mjs    사용하는 three.js 파일만 vendor/three/로 복사
+vendor/three/         three.js r170 (MIT, 13개 애드온)
 ```
+
+WebGL 2를 쓸 수 없거나 GPU가 컨텍스트를 회수하면, 빈 화면 대신 렌더 영상 링크가 있는 안내 화면이 뜹니다. 실시간 장면은 GPU 속도에 맞춰 해상도를 내리고, 여유가 생기면 다시 올립니다.
 
 ## 크레딧
 
