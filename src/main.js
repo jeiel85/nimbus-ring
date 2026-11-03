@@ -110,7 +110,8 @@ if (CAPTURE) {
   window.__duration = DURATION;
   window.__renderAt = (t) => {
     if (window.__failed) throw new Error(window.__failed);
-    return { fade: renderFilmFrame(t).fade };
+    const { fade, white } = renderFilmFrame(t);
+    return { fade, white };
   };
   const gl = renderer.getContext();
   const dbg = gl.getExtension('WEBGL_debug_renderer_info');

@@ -68,14 +68,15 @@ try {
   if (/swiftshader|llvmpipe/i.test(gpu)) console.warn('warning: software rendering — this will be slow');
 
   // Film grain changes every frame, so two identical screenshots in a row mean the capture
-  // did not pick up the new frame — unless the picture is faded to black (fade-in / end card).
+  // did not pick up the new frame — unless the grade has flattened the picture to a solid colour
+  // (fade to black at the ends, the white-out between HALO DROP and UNDERSIDE).
   let prevHash = null;
   const shoot = async (t) => {
     for (let attempt = 1; attempt <= 4; attempt++) {
-      const { fade } = await page.evaluate((x) => window.__renderAt(x), t);
+      const { fade, white } = await page.evaluate((x) => window.__renderAt(x), t);
       const png = await page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false });
       const hash = crypto.createHash('sha1').update(png).digest('hex');
-      if (hash !== prevHash || fade >= 0.98) {
+      if (hash !== prevHash || fade >= 0.98 || white >= 0.98) {
         prevHash = hash;
         return png;
       }
