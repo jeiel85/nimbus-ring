@@ -5,7 +5,9 @@
   "scripts": {
     "render": "node scripts/render.mjs",
     "stills": "node scripts/render.mjs --stills 3,9,15,20,25.5,30.5,36,41",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "vendor": "node scripts/vendor.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "author": "",
   "license": "MIT",

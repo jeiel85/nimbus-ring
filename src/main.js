@@ -19,12 +19,18 @@ if (!QUALITY) throw new Error(`unknown quality tier "${tier}" (use film, high or
 if (CAPTURE) document.body.classList.add('capture');
 
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: false,
-  powerPreference: 'high-performance',
-  preserveDrawingBuffer: CAPTURE,
-});
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: false,
+    powerPreference: 'high-performance',
+    preserveDrawingBuffer: CAPTURE,
+  });
+} catch (err) {
+  window.__fail('This browser could not start WebGL 2, so the real-time scene cannot run here.');
+  throw err;
+}
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.setPixelRatio(Math.min(devicePixelRatio, QUALITY.maxDpr));
@@ -92,12 +98,20 @@ function resize() {
 }
 addEventListener('resize', resize);
 
+// the GPU can reclaim the context (driver reset, mobile memory pressure); nothing survives that
+canvas.addEventListener('webglcontextlost', (ev) => {
+  ev.preventDefault();
+  renderer.setAnimationLoop(null);
+  window.__fail('The GPU reset the 3D context. Reload the page to start the scene again.', { reload: true });
+});
+
 // ---------- offline capture hook (scripts/render.mjs) ----------
 if (CAPTURE) {
   window.__duration = DURATION;
   window.__renderAt = (t) => {
-    renderFilmFrame(t);
-    return true;
+    if (window.__failed) throw new Error(window.__failed);
+    const { fade, white } = renderFilmFrame(t);
+    return { fade, white };
   };
   const gl = renderer.getContext();
   const dbg = gl.getExtension('WEBGL_debug_renderer_info');
@@ -196,21 +210,34 @@ function startInteractive() {
     if (ev.target === dialog) dialog.close();
   });
 
-  // drop resolution on slow GPUs until the film holds ~30 fps
+  // resolution follows the GPU: drop it while the film can't hold ~30 fps, climb back when there is headroom.
+  // `ceiling` remembers the last ratio that was too slow so it doesn't oscillate around it.
+  const maxPr = Math.min(devicePixelRatio, QUALITY.maxDpr);
+  let ceiling = Infinity;
   let slowFrames = 0;
+  let fastFrames = 0;
   let sampled = 0;
   function adapt(dt) {
-    if (document.hidden) return;
+    if (document.hidden || dialog.open) return;
     sampled++;
     if (dt > 1 / 28) slowFrames++;
+    if (dt < 1 / 50) fastFrames++;
     if (sampled < 90) return;
     const pr = renderer.getPixelRatio();
+    let next = pr;
     if (slowFrames > 60 && pr > 0.6) {
-      renderer.setPixelRatio(Math.max(0.6, pr * 0.8));
+      ceiling = pr;
+      next = Math.max(0.6, pr * 0.8);
+    } else if (fastFrames > 80 && pr < maxPr) {
+      next = Math.max(pr, Math.min(maxPr, pr * 1.15, ceiling * 0.95));
+    }
+    if (Math.abs(next - pr) > 0.01) {
+      renderer.setPixelRatio(next);
       resize();
     }
     sampled = 0;
     slowFrames = 0;
+    fastFrames = 0;
   }
 
   setMode('film');
